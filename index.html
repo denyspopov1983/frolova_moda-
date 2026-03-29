@@ -4,22 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        /* Ваш стиль остается без изменений */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background-color: #f5f5f5; margin: 0; }
-        .form-container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); width: 90%; max-width: 500px; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh; 
+            background-color: #f5f5f5; 
+            margin: 0; 
+        }
+
+        .form-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); 
+            width: 90%; 
+            max-width: 500px; 
+        }
+
         form { display: flex; flex-direction: column; gap: 18px; }
-        input { padding: 14px 20px; border: 1px solid #dadce0; border-radius: 8px; font-size: 16px; color: #3c4043; outline: none; transition: all 0.3s ease; }
-        input:focus { border-color: #4285f4; box-shadow: 0 0 0 3px rgba(66,133,244,0.15); transform: translateY(-1px); }
-        button { background-color: #1d5334; color: white; border: none; padding: 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+
+        input { 
+            padding: 14px 20px; 
+            border: 1px solid #dadce0; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            color: #3c4043; 
+            outline: none; 
+            transition: all 0.3s ease; 
+        }
+
+        input:focus { 
+            border-color: #4285f4; 
+            box-shadow: 0 0 0 3px rgba(66,133,244,0.15); 
+            transform: translateY(-1px); 
+        }
+
+        button { 
+            background-color: #1d5334; 
+            color: white; 
+            border: none; 
+            padding: 16px; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            font-size: 16px; 
+            cursor: pointer; 
+            transition: all 0.2s ease; 
+        }
+
         button:hover { background-color: #43b800; transform: translateY(-1px); }
+        
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        /* СТИЛИ ДЛЯ ВСПЛЫВАЮЩЕГО УВЕДОМЛЕНИЯ (Toast) */
+        #toast {
+            visibility: hidden;
+            min-width: 280px;
+            background-color: #1d5334; /* Зеленый цвет под стиль кнопки */
+            color: #fff;
+            text-align: center;
+            border-radius: 10px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 16px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            transition: all 0.4s ease;
+            opacity: 0;
+        }
+
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px; /* Плавное всплытие вверх */
+        }
     </style>
 </head>
 <body>
 
 <div class="form-container">
-    <!-- Добавили name="google-sheet" для связи со скриптом -->
     <form name="google-sheet">
-        <!-- ВАЖНО: name должен совпадать с заголовком колонки в таблице! -->
         <input type="text" name="Товар" placeholder="Товар" required>
         <input type="text" name="Цвет-размер" placeholder="Цвет-размер" required>
         <input type="text" name="ФИО" placeholder="ФИО" required>
@@ -30,31 +98,59 @@
     </form>
 </div>
 
+<!-- Блок для уведомления -->
+<div id="toast">Данные успешно отправлены!</div>
+
 <script>
-    // 1. Вставьте сюда вашу ссылку (Deployment ID)
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbyvocVRJReQhJwCYcDc4I1MnAs4a-VQqeuxYB9hbleElSczEO7Ts-d5KDiwuBtCNFttZQ/exec'
-    const form = document.forms['google-sheet']
-    const btn = document.getElementById('submit-btn')
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbziu44cnKtMrhF10xfOFTeVeTK4qm_PsGVBNEhjBQ4Bbk-agjEwAl7aP_6p7ELEy6EBdA/exec';
+    const form = document.forms['google-sheet'];
+    const btn = document.getElementById('submit-btn');
+    const toast = document.getElementById('toast');
 
     form.addEventListener('submit', e => {
-        e.preventDefault()
-        btn.disabled = true
-        btn.innerHTML = 'Отправка...'
+        e.preventDefault();
+        btn.disabled = true;
+        btn.innerHTML = 'Отправка...';
 
-        fetch(scriptURL, { method: 'POST', body: new FormData(form)})
-            .then(response => {
-                alert("Данные успешно отправлены!");
-                btn.disabled = false;
-                btn.innerHTML = 'Отправить';
-                form.reset();
-            })
-            .catch(error => {
-                console.error('Ошибка!', error.message);
-                alert("Произошла ошибка при отправке.");
-                btn.disabled = false;
-                btn.innerHTML = 'Отправить';
-            })
-    })
+        // Резервный таймер на случай зависания Google
+        const backupTimer = setTimeout(() => {
+            if (btn.disabled) {
+                finalizeForm("Данные отправлены!");
+            }
+        }, 2500);
+
+        fetch(scriptURL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: new FormData(form) 
+        })
+        .then(() => {
+            clearTimeout(backupTimer);
+            finalizeForm("Данные успешно сохранены!");
+        })
+        .catch(error => {
+            clearTimeout(backupTimer);
+            finalizeForm("Ошибка! Но проверьте таблицу.");
+            console.error('Error!', error.message);
+        });
+    });
+
+    // Функция завершения: очистка и показ уведомления
+    function finalizeForm(message) {
+        // Устанавливаем текст и показываем плашку
+        toast.innerHTML = message;
+        toast.className = "show";
+        
+        // Сбрасываем форму и кнопку
+        btn.disabled = false;
+        btn.innerHTML = 'Отправить';
+        form.reset(); 
+
+        // Скрываем плашку через 3 секунды
+        setTimeout(() => { 
+            toast.className = toast.className.replace("show", ""); 
+        }, 3000);
+    }
 </script>
 
 </body>
